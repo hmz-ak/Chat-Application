@@ -32,7 +32,11 @@ import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.ListView;
 import android.widget.ProgressBar;
+import android.widget.Toast;
 
+import com.firebase.ui.auth.AuthUI;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.ChildEventListener;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
@@ -40,6 +44,7 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
@@ -48,6 +53,9 @@ public class MainActivity extends AppCompatActivity {
 
     public static final String ANONYMOUS = "anonymous";
     public static final int DEFAULT_MSG_LENGTH_LIMIT = 1000;
+    // Choose an arbitrary request code value
+    private static final int RC_SIGN_IN = 123;
+
 
     private ListView mMessageListView;
     private MessageAdapter mMessageAdapter;
@@ -61,6 +69,8 @@ public class MainActivity extends AppCompatActivity {
     private FirebaseDatabase mFirebaseDatabase; //entry point for our app to access firebase database
     private DatabaseReference mMessageDatabaseReference; //refers to specific part of the database in this case its going to refer the messages portion of the database
     private ChildEventListener mChildEventListener; //listens to the change in database
+    private FirebaseAuth mFirebaseAuth;
+    private FirebaseAuth.AuthStateListener mAuthStateListener;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -70,6 +80,7 @@ public class MainActivity extends AppCompatActivity {
         mUsername = ANONYMOUS;
 
         mFirebaseDatabase=FirebaseDatabase.getInstance(); //main access point
+        mFirebaseAuth=FirebaseAuth.getInstance();
         mMessageDatabaseReference=mFirebaseDatabase.getReference().child("messages"); //getting refernce to the root node and specifically refering to the messages.
 
         // Initialize references to views
@@ -127,36 +138,28 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        mChildEventListener=new ChildEventListener() {
-            @Override
-            public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
-            //this method is called whenever a new message is added into the database
-                FriendlyMessage friendlyMessage= snapshot.getValue(FriendlyMessage.class); //this will get the new message data as datasnapshot saves the message data which is added
-                //friendly message takes a parameter which is a class , it will deserialize the message that is contained in snapshot in the form of serialized data
-                mMessageAdapter.add(friendlyMessage); //and then it will be added to the adapter
-            }
-            @Override
-            public void onChildChanged(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
-                //it is called when content of existinfg message is changed
 
-            }
+        mAuthStateListener=new FirebaseAuth.AuthStateListener() {
             @Override
-            public void onChildRemoved(@NonNull DataSnapshot snapshot) {
-                //when an existing message is deleted
-
-            }
-            @Override
-            public void onChildMoved(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
-                //when a message's position is changed in a list
-
-            }
-            @Override
-            public void onCancelled(@NonNull DatabaseError error) {
-            //this method indicates some kind of error occured when you are trying to make changes
-                // typically when it is called it means that you dont have permission to read the data
+            public void onAuthStateChanged(@NonNull FirebaseAuth firebaseAuth) {
+                FirebaseUser firebaseUser=firebaseAuth.getCurrentUser();
+                if(firebaseUser != null){
+                OnSignedInInitialize(firebaseUser.getDisplayName());
+                }else{
+                    OnSignedOutCleanup();
+                    startActivityForResult(
+                            AuthUI.getInstance()
+                                    .createSignInIntentBuilder()
+                                    .setIsSmartLockEnabled(false)
+                                    .setAvailableProviders(Arrays.asList(
+                                            new AuthUI.IdpConfig.GoogleBuilder().build(),
+                                            new AuthUI.IdpConfig.EmailBuilder().build()
+                                            ))
+                                    .build(),
+                            RC_SIGN_IN);
+                }
             }
         };
-        mMessageDatabaseReference.addChildEventListener(mChildEventListener);
     }
 
     @Override
@@ -169,5 +172,79 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         return super.onOptionsItemSelected(item);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        mFirebaseAuth.addAuthStateListener(mAuthStateListener);
+
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (mAuthStateListener != null) {
+            mFirebaseAuth.removeAuthStateListener(mAuthStateListener);
+        }
+        detachDatabaseListener();
+        mMessageAdapter.clear();
+
+    }
+
+    private void OnSignedInInitialize(String username){
+        mUsername=username;
+        attachDatabseReadListener();
+
+    }
+    private void OnSignedOutCleanup(){
+        mUsername=ANONYMOUS;
+        mMessageAdapter.clear();
+        detachDatabaseListener();
+    }
+
+    private void attachDatabseReadListener() {
+        if (mChildEventListener == null) {
+            mChildEventListener = new ChildEventListener() {
+                @Override
+                public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
+                    //this method is called whenever a new message is added into the database
+                    FriendlyMessage friendlyMessage = snapshot.getValue(FriendlyMessage.class); //this will get the new message data as datasnapshot saves the message data which is added
+                    //friendly message takes a parameter which is a class , it will deserialize the message that is contained in snapshot in the form of serialized data
+                    mMessageAdapter.add(friendlyMessage); //and then it will be added to the adapter
+                }
+
+                @Override
+                public void onChildChanged(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
+                    //it is called when content of existinfg message is changed
+
+                }
+
+                @Override
+                public void onChildRemoved(@NonNull DataSnapshot snapshot) {
+                    //when an existing message is deleted
+
+                }
+
+                @Override
+                public void onChildMoved(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
+                    //when a message's position is changed in a list
+
+                }
+
+                @Override
+                public void onCancelled(@NonNull DatabaseError error) {
+                    //this method indicates some kind of error occured when you are trying to make changes
+                    // typically when it is called it means that you dont have permission to read the data
+                }
+            };
+            mMessageDatabaseReference.addChildEventListener(mChildEventListener);
+        }
+    }
+    private void detachDatabaseListener() {
+        if (mChildEventListener != null) {
+            mMessageDatabaseReference.removeEventListener(mChildEventListener);
+            mChildEventListener=null;
+        }
     }
 }
