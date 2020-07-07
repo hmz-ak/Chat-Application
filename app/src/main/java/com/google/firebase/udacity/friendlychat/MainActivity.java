@@ -16,6 +16,9 @@
 package com.google.firebase.udacity.friendlychat;
 
 import android.os.Bundle;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import android.text.Editable;
 import android.text.InputFilter;
@@ -30,6 +33,9 @@ import android.widget.ImageButton;
 import android.widget.ListView;
 import android.widget.ProgressBar;
 
+import com.google.firebase.database.ChildEventListener;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 
@@ -54,6 +60,7 @@ public class MainActivity extends AppCompatActivity {
 
     private FirebaseDatabase mFirebaseDatabase; //entry point for our app to access firebase database
     private DatabaseReference mMessageDatabaseReference; //refers to specific part of the database in this case its going to refer the messages portion of the database
+    private ChildEventListener mChildEventListener; //listens to the change in database
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -119,6 +126,37 @@ public class MainActivity extends AppCompatActivity {
                 mMessageEditText.setText("");
             }
         });
+
+        mChildEventListener=new ChildEventListener() {
+            @Override
+            public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
+            //this method is called whenever a new message is added into the database
+                FriendlyMessage friendlyMessage= snapshot.getValue(FriendlyMessage.class); //this will get the new message data as datasnapshot saves the message data which is added
+                //friendly message takes a parameter which is a class , it will deserialize the message that is contained in snapshot in the form of serialized data
+                mMessageAdapter.add(friendlyMessage); //and then it will be added to the adapter
+            }
+            @Override
+            public void onChildChanged(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
+                //it is called when content of existinfg message is changed
+
+            }
+            @Override
+            public void onChildRemoved(@NonNull DataSnapshot snapshot) {
+                //when an existing message is deleted
+
+            }
+            @Override
+            public void onChildMoved(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
+                //when a message's position is changed in a list
+
+            }
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+            //this method indicates some kind of error occured when you are trying to make changes
+                // typically when it is called it means that you dont have permission to read the data
+            }
+        };
+        mMessageDatabaseReference.addChildEventListener(mChildEventListener);
     }
 
     @Override
