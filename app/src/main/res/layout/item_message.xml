@@ -28,7 +28,6 @@
                 android:id="@+id/photoImageView"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-
                 android:adjustViewBounds="true" />
 
             <TextView
@@ -38,7 +37,7 @@
                 android:layout_weight="0"
                 android:textAppearance="?android:attr/textAppearanceSmall"
                 android:textColor="#FFFFFF"
-                android:textFontWeight="10"
+                android:textFontWeight="11"
                 tools:text="Name" />
 
             <TextView
@@ -46,7 +45,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_weight="0"
-                android:textAppearance="?android:attr/textAppearanceLarge"
+                android:textAppearance="?android:attr/textAppearanceMedium"
                 android:textColor="#FFFFFF"
                 tools:text="Message" />
         </LinearLayout>
