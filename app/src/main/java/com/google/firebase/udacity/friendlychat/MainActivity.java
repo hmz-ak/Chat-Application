@@ -15,6 +15,7 @@
  */
 package com.google.firebase.udacity.friendlychat;
 
+import android.content.Intent;
 import android.os.Bundle;
 
 import androidx.annotation.NonNull;
@@ -171,9 +172,28 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        return super.onOptionsItemSelected(item);
+        switch (item.getItemId()) {
+            case R.id.sign_out_menu:
+                AuthUI.getInstance().signOut(this);
+                return true;
+            default:
+                return super.onOptionsItemSelected(item);
+        }
     }
 
+    @Override
+    public void onActivityResult(int Requestcode, int Resultcode, Intent data) {
+        super.onActivityResult(Requestcode, Resultcode, data);
+        if(Requestcode==RC_SIGN_IN){
+            if(Resultcode==RESULT_OK){
+                Toast.makeText(MainActivity.this, "Welcome to Friendly Chat", Toast.LENGTH_SHORT).show();
+            } else if(Resultcode==RESULT_CANCELED){
+                Toast.makeText(MainActivity.this, "Sign in cancelled", Toast.LENGTH_SHORT).show();
+                finish();
+            }
+        }
+
+    }
     @Override
     protected void onResume() {
         super.onResume();
